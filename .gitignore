@@ -2,3 +2,4 @@
 transcription.txt
 node_modules
 .DS_Store
+parsed_steps.json

@@ -1,0 +1,22 @@
+[
+  {
+    "content": "'code_generation': In the 'model.py' file, create a function called 'inference' within the Item class.",
+    "type": "OTHER"
+  },
+  {
+    "content": "'code_generation': Within the 'inference' function, create or edit a variable named 'transformers'.",
+    "type": "OTHER"
+  },
+  {
+    "content": "'system', 'open': Switch to the 'training' notepad or text editor.",
+    "type": "OTHER"
+  },
+  {
+    "content": "'code_generation': Write a new function called 'back_propagation'.",
+    "type": "OTHER"
+  },
+  {
+    "content": "'system', 'run': Execute the 'training.py' file.",
+    "type": "OTHER"
+  }
+]
