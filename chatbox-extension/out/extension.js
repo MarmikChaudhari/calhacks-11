@@ -11,6 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deactivate = exports.activate = void 0;
 const vscode = require("vscode");
+const speech_reader_js_1 = require("./speech-reader.js");
 class ChatViewProvider {
     constructor() {
         this._onDidChangeTreeData = new vscode.EventEmitter();
@@ -26,17 +27,34 @@ class ChatViewProvider {
         }
         return Promise.resolve(this.messages);
     }
-    addMessage(message) {
-        const chatMessage = new ChatMessage(message, vscode.TreeItemCollapsibleState.None);
+    addMessage(message, type, action) {
+        const chatMessage = new ChatMessage(message, vscode.TreeItemCollapsibleState.None, type, action);
         this.messages.push(chatMessage);
+        this._onDidChangeTreeData.fire();
+    }
+    updateLastMessage(message) {
+        if (this.messages.length > 0 && this.messages[this.messages.length - 1].type === 'TRANSCRIPTION') {
+            this.messages[this.messages.length - 1].label = message;
+        }
+        else {
+            this.addMessage(message, 'TRANSCRIPTION');
+        }
+        this._onDidChangeTreeData.fire();
+    }
+    clearMessages() {
+        this.messages = [];
         this._onDidChangeTreeData.fire();
     }
 }
 class ChatMessage extends vscode.TreeItem {
-    constructor(label, collapsibleState) {
+    constructor(label, collapsibleState, type, action) {
         super(label, collapsibleState);
         this.label = label;
         this.collapsibleState = collapsibleState;
+        this.type = type;
+        this.action = action;
+        this.tooltip = `${type}${action ? ': ' + action : ''}`;
+        this.description = `${type}${action ? ': ' + action : ''}`;
     }
 }
 function activate(context) {
@@ -46,10 +64,21 @@ function activate(context) {
     let disposable = vscode.commands.registerCommand('chatbox.sendMessage', () => __awaiter(this, void 0, void 0, function* () {
         const message = yield vscode.window.showInputBox({ prompt: 'Enter your message' });
         if (message) {
-            chatViewProvider.addMessage(message);
+            chatViewProvider.addMessage(message, 'USER');
         }
     }));
     context.subscriptions.push(disposable);
+    // Integrate real-time transcription
+    (0, speech_reader_js_1.watchRealtimeTranscription)((transcription) => {
+        chatViewProvider.updateLastMessage(transcription);
+    });
+    // Integrate speech recognition steps
+    (0, speech_reader_js_1.watchStepsFile)((steps) => {
+        chatViewProvider.clearMessages();
+        steps.forEach((step) => {
+            chatViewProvider.addMessage(step.content, step.type, step.action);
+        });
+    });
     console.log('Extension "vscode-chatbox-extension" is now active');
 }
 exports.activate = activate;
