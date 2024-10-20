@@ -1,0 +1,57 @@
+[
+  {
+    "content": "Open the file named \"sample.py\".",
+    "type": "system",
+    "action": "open"
+  },
+  {
+    "content": "Run the \"sample.py\" file in the terminal.",
+    "type": "system",
+    "action": "run"
+  },
+  {
+    "content": "Create a new folder named \"test_folder\".",
+    "type": "system",
+    "action": "newFolder"
+  },
+  {
+    "content": "Rename \"test_folder\" to \"test_folder__\".",
+    "type": "system",
+    "action": "rename"
+  },
+  {
+    "content": "Toggle the sidebar.",
+    "type": "system",
+    "action": "toggleSidebar"
+  },
+  {
+    "content": "Open a new terminal.",
+    "type": "system",
+    "action": "openTerminal"
+  },
+  {
+    "content": "Create a new file named \"README.md\".",
+    "type": "system",
+    "action": "newFile"
+  },
+  {
+    "content": "Save the current file.",
+    "type": "system",
+    "action": "saveFile"
+  },
+  {
+    "content": "Close all open editors.",
+    "type": "system",
+    "action": "closeAllEditors"
+  },
+  {
+    "content": "Show the command palette.",
+    "type": "system",
+    "action": "showCommands"
+  },
+  {
+    "content": "Open VS Code settings.",
+    "type": "system",
+    "action": "openSettings"
+  }
+]
