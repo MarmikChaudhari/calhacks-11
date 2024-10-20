@@ -1,17 +1,8 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.deactivate = exports.activate = void 0;
 const vscode = require("vscode");
-const speech_reader_js_1 = require("./speech-reader.js");
+const WebSocket = require("ws");
 class ChatViewProvider {
     constructor() {
         this._onDidChangeTreeData = new vscode.EventEmitter();
@@ -57,32 +48,56 @@ class ChatMessage extends vscode.TreeItem {
         this.description = `${type}${action ? ': ' + action : ''}`;
     }
 }
+let ws = null;
 function activate(context) {
     console.log('Activating extension "vscode-chatbox-extension"');
     const chatViewProvider = new ChatViewProvider();
     vscode.window.registerTreeDataProvider('chatboxView', chatViewProvider);
-    let disposable = vscode.commands.registerCommand('chatbox.sendMessage', () => __awaiter(this, void 0, void 0, function* () {
-        const message = yield vscode.window.showInputBox({ prompt: 'Enter your message' });
-        if (message) {
-            chatViewProvider.addMessage(message, 'USER');
+    // Connect to the Python WebSocket server
+    ws = new WebSocket('ws://localhost:8765');
+    ws.on('open', () => {
+        console.log('Connected to Python WebSocket server');
+    });
+    ws.on('message', (data) => {
+        const message = JSON.parse(data);
+        if (message.type === 'transcription') {
+            chatViewProvider.updateLastMessage(message.content);
         }
-    }));
-    context.subscriptions.push(disposable);
-    // Integrate real-time transcription
-    (0, speech_reader_js_1.watchRealtimeTranscription)((transcription) => {
-        chatViewProvider.updateLastMessage(transcription);
+        else if (message.type === 'steps') {
+            chatViewProvider.clearMessages();
+            message.content.forEach((step) => {
+                chatViewProvider.addMessage(step.content, step.type, step.action);
+            });
+        }
     });
-    // Integrate speech recognition steps
-    (0, speech_reader_js_1.watchStepsFile)((steps) => {
-        chatViewProvider.clearMessages();
-        steps.forEach((step) => {
-            chatViewProvider.addMessage(step.content, step.type, step.action);
-        });
+    ws.on('close', () => {
+        console.log('Disconnected from Python WebSocket server');
     });
+    // Register key event listeners
+    const optionKeyPressed = vscode.commands.registerCommand('type', (args) => {
+        if (args.text === '\u001b') { // Option key code
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send('START');
+                vscode.window.showInformationMessage('Speech recognition started...');
+            }
+        }
+    });
+    const optionKeyReleased = vscode.workspace.onDidChangeTextDocument((event) => {
+        if (event.contentChanges.length > 0 && event.contentChanges[0].text === '') {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send('STOP');
+                vscode.window.showInformationMessage('Speech recognition stopped. Processing...');
+            }
+        }
+    });
+    context.subscriptions.push(optionKeyPressed, optionKeyReleased);
     console.log('Extension "vscode-chatbox-extension" is now active');
 }
 exports.activate = activate;
 function deactivate() {
+    if (ws) {
+        ws.close();
+    }
     console.log('Extension "vscode-chatbox-extension" is now deactivated');
 }
 exports.deactivate = deactivate;
