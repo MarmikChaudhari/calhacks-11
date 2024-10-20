@@ -1,0 +1,22 @@
+[
+  {
+    "content": "Open the file named \"main.py\".",
+    "type": "system",
+    "action": "open"
+  },
+  {
+    "content": "Generate a function called \"inference\".",
+    "type": "code_generation",
+    "action": "edit"
+  },
+  {
+    "content": "Change the variable to \"z\" within the \"inference\" function.",
+    "type": "code_generation",
+    "action": "edit"
+  },
+  {
+    "content": "Run the \"main.py\" file in the terminal.",
+    "type": "system",
+    "action": "run"
+  }
+]

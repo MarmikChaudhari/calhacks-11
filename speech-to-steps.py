@@ -121,9 +121,8 @@ def generate_structured_steps(transcription):
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are an AI assistant that converts transcriptions into structured steps."},
-            {"role": "user", "content": f"Please convert the following transcription into structured steps for programming tasks. "
-             f"Classify each step into one of these categories: 'system', 'code_generation', 'other'. "
-             f"If 'system', also specify the action (open, create, delete, rename, move, edit, run, stop, install, update, or other). :\n\n{transcription}"}
+            {"role": "user", "content": f"""Please convert the following transcription into structured steps for programming tasks. Classify/tag each step into one of these categories: 'system', 'code_generation', 'other'. If 'system', also specify the action (open, create, delete, rename, move, edit, run, stop, install, update, or other). 
+             The output should be a list of steps with the following format: '1.[type][action] step_content'. Here is the transcription :\n\n{transcription}"""}
         ],
         max_tokens=1000
     )
@@ -155,33 +154,33 @@ def on_release(key):
         open("transcription.txt", "w").close()
 
 def parse_classified_steps(structured_steps):
-    steps = re.split(r'\d+\.', structured_steps)[1:]  # Skip the empty first element
+    # Split the steps, keeping the step numbers
+    steps = re.split(r'(\d+\.)', structured_steps)[1:]  # Remove the first empty element
     
     parsed_steps = []
-    for step in steps:
-        match = re.match(r'\s*(.*?)\s*\[(SYSTEM(?::[\w]+)?|CODE_GENERATION|OTHER)\]\s*$', step.strip(), re.DOTALL)
+    for i in range(0, len(steps), 2):
+        step_number = steps[i].strip()
+        step_content = steps[i + 1].strip() if i + 1 < len(steps) else ""
+        
+        # Parse the step content
+        match = re.match(r'\[(\w+)\](?:\[(\w+)\])?\s*(.*)', step_content, re.DOTALL)
         if match:
-            step_content = match.group(1).strip()
-            classification = match.group(2)
-            
-            if classification.startswith('SYSTEM:'):
-                action_type = classification.split(':')[1]
-                parsed_steps.append({
-                    'content': step_content,
-                    'type': 'SYSTEM',
-                    'action': action_type
-                })
-            else:
-                parsed_steps.append({
-                    'content': step_content,
-                    'type': classification
-                })
+            step_type, action, content = match.groups()
+            step_dict = {
+                'content': content.strip(),
+                'type': step_type.lower(),
+                'action': action.lower() if action else None
+            }
+            parsed_steps.append(step_dict)
         else:
+            # If the step doesn't match the expected format, treat it as 'other'
             parsed_steps.append({
-                'content': step.strip(),
-                'type': 'OTHER'
+                'content': step_content,
+                'type': 'other',
+                'action': None
             })
-    
+
+    # Save the parsed steps to a JSON file
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"steps_{timestamp}.json"
     
@@ -196,27 +195,50 @@ def execute_steps(structured_steps):
     steps = parse_classified_steps(structured_steps)
     for step in steps:
         action_type = step['type']
-        if action_type == 'SYSTEM':
-            specific_action = step['action']
+        if action_type == 'system':
+            specific_action = step['action'] or 'other'
             execute_system_action(step['content'], specific_action)
-        elif action_type == 'CODE_GENERATION':
+        elif action_type == 'code_generation':
             generated_code = generate_code(step['content'])
             print(f"Generated code for step: {step['content']}")
             print(generated_code)
         else:
-            print(f"Unhandled step type: {step}")
+            print(f"Other step: {step['content']}")
 
 def execute_system_action(step, action):
     print(f"Executing system action: {action}")
     # Implement the logic for each system action here
-    # For now, we'll just print the action and step
-    print(f"Action: {action}, Step: {step}")
+    if action == 'open':
+        print(f"Opening: {step}")
+        # TODO: Implement the logic to open a file or application
+    elif action == 'create':
+        print(f"Creating: {step}")
+        # TODO: Implement the logic to create a file or application
+    elif action == 'delete':
+        print(f"Deleting: {step}")
+        # TODO: Implement the logic to delete a file or application
+    elif action == 'rename':
+        print(f"Renaming: {step}")
+    elif action == 'move':
+        print(f"Moving: {step}")
+    elif action == 'edit':
+        print(f"Editing: {step}")
+    elif action == 'run':
+        print(f"Running: {step}")
+    elif action == 'stop':
+        print(f"Stopping: {step}")
+    elif action == 'install':
+        print(f"Installing: {step}")
+    elif action == 'update':
+        print(f"Updating: {step}")
+    else:
+        print(f"Other action: {action}, Step: {step}")
 
 def generate_code(step):
     client = OpenAI(api_key=OPENAI_API_KEY)
     try:
         response = client.chat.completions.create(
-            model="gpt-4",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that generates code or makes relevant changes to files based on instructions."},
                 {"role": "user", "content": f"Generate or make changes to code for the following instruction:\n\n{step}"}
