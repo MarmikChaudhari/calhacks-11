@@ -10,6 +10,8 @@ from pynput import keyboard
 from dotenv import load_dotenv
 from deepgram import DeepgramClient, LiveTranscriptionEvents, LiveOptions
 from openai import OpenAI
+import websockets
+import asyncio
 
 load_dotenv()
 
@@ -22,30 +24,22 @@ CHUNK = 1024
 API_KEY = os.getenv("DG_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+# websocket communication
+WS_HOST = 'localhost'
+WS_PORT = 8765
+
 transcription_active = False
 dg_connection = None
 audio_thread = None
 exit_flag = None
+current_websocket = None
 
-# Define regex patterns for common system actions
-SYSTEM_ACTIONS = {
-    'open': r'\b(open|view|display)\b',
-    'create': r'\b(create|make|new)\b',
-    'delete': r'\b(delete|remove|erase)\b',
-    'rename': r'\b(rename|change\s+name)\b',
-    'move': r'\b(move|relocate)\b',
-    'edit': r'\b(edit|modify|change)\b',
-    'run': r'\b(run|execute|start)\b',
-    'stop': r'\b(stop|halt|terminate)\b',
-    'install': r'\b(install|set\s+up)\b',
-    'update': r'\b(update|upgrade)\b'
-}
 
 # Constant for the JSON file path
 STEPS_JSON_FILE = "vscode_steps.json"
 
 def start_transcription():
-    global transcription_active, dg_connection, audio_thread, exit_flag
+    global transcription_active, dg_connection, audio_thread, exit_flag, current_websocket
     
     deepgram = DeepgramClient(API_KEY)
     dg_connection = deepgram.listen.websocket.v("1")
@@ -56,6 +50,12 @@ def start_transcription():
             print(sentence, end=" ", flush=True)
             with open("transcription.txt", "a") as f:
                 f.write(sentence + " ")
+            # send realtime transcription to the websocket
+            if current_websocket:
+                asyncio.run(current_websocket.send(json.dumps({
+                    "type": "transcription",
+                    "content": sentence
+                })))
 
     def on_metadata(self, metadata, **kwargs):
         print(f"\n\n{metadata}\n\n")
@@ -191,10 +191,47 @@ def save_steps_to_json(parsed_steps):
     
     print(f"Steps have been saved to {STEPS_JSON_FILE}")
 
-def main():
-    print("Press and hold the Option (Alt) key to start transcribing. Release to generate steps.")
-    with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
-        listener.join()
+
+async def ws_server(websocket, path):
+    global transcription_active, current_websocket
+    current_websocket = websocket
+    try:
+        async for message in websocket:
+            if message == "START":
+                if not transcription_active:
+                    print("Starting transcription...")
+                    open("transcription.txt", "w").close()
+                    start_transcription()
+            elif message == "STOP":
+                if transcription_active:
+                    print("Stopping transcription and generating steps...")
+                    stop_transcription()
+                    
+                    with open("transcription.txt", "r") as f:
+                        transcription = f.read()
+                    
+                    structured_steps = generate_structured_steps(transcription)
+                    parsed_steps = parse_classified_steps(structured_steps)
+                    save_steps_to_json(parsed_steps)
+                    
+                    # Send the steps back to the VS Code extension
+                    await websocket.send(json.dumps({
+                        "type": "steps",
+                        "content": parsed_steps
+                    }))
+    finally:
+        if transcription_active:
+            stop_transcription()
+        current_websocket = None
+
+
+async def main():
+    server = await websockets.serve(ws_server, WS_HOST, WS_PORT)
+    print(f"WebSocket server started on ws://{WS_HOST}:{WS_PORT}")
+    await server.wait_closed()
+    # print("Press and hold the Option (Alt) key to start transcribing. Release to generate steps.")
+    # with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
+    #     listener.join()
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
