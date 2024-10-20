@@ -191,42 +191,32 @@ def save_steps_to_json(parsed_steps):
     
     print(f"Steps have been saved to {STEPS_JSON_FILE}")
 
+ 
 
-def extract_file_path(content):
-    # Simple regex to extract file path. Adjust as needed for your specific use case.
-    match = re.search(r'in file `([^`]+)`', content)
-    return match.group(1) if match else None
-
-
-def get_file_context(file_path):
-    try:
-        with open(file_path, 'r') as file:
-            return file.read()
-    except FileNotFoundError:
-        print(f"File not found: {file_path}")
-        return ""
-    
-
-def generate_code(instruction, context):
+def generate_code(step_content):
     client = OpenAI(api_key=OPENAI_API_KEY)
     response = client.chat.completions.create(
-        model="gpt-4o",
+        model="gpt-4",
         messages=[
-            {"role": "system", "content": "You are an AI assistant that generates code based on instructions and context."},
-            {"role": "user", "content": f"Given the following context:\n\n{context}\n\nGenerate code for the following instruction:\n{instruction}"}
+            {"role": "system", "content": "You are an AI assistant that generates code based on instructions."},
+            {"role": "user", "content": f"Generate code for the following instruction :\n{step_content}"}
         ],
         max_tokens=2000
     )
     return response.choices[0].message.content
 
-
 def insert_code(file_path, code):
     try:
+        # file_path = 'test.txt'
+        # Ensure the file has a .txt extension
+        if not file_path.endswith('.txt'):
+            file_path += '.txt'
+        
         with open(file_path, 'w') as file:
             file.write(code)
-        print(f"File {file_path} has been rewritten with the new code")
+        print(f"Code has been inserted into {file_path}")
     except IOError as e:
-        print(f"Error rewriting file {file_path}: {e}")
+        print(f"Error inserting code into {file_path}: {e}")
 
 async def ws_server(websocket, path):
     global transcription_active, current_websocket
@@ -253,11 +243,8 @@ async def ws_server(websocket, path):
                     # Generate code for each step that requires code generation
                     for step in parsed_steps:
                         if step['action'] == 'edit' and step['type'] == 'code_generation':
-                            file_path = extract_file_path(step['content'])
-                            if file_path:
-                                context = get_file_context(file_path)
-                                generated_code = generate_code(step['content'], context)
-                                insert_code(file_path, generated_code)
+                            generated_code = generate_code(step['content'])
+                            insert_code('test.txt', generated_code)
 
                     # Send the steps back to the VS Code extension
                     await websocket.send(json.dumps({
