@@ -2,6 +2,9 @@
 
 codewhisper is an innovative VS Code extension that serves as an AI-powered pair programmer, using voice control and artificial intelligence to assist developers in real-time.
 
+## Our Mission
+Our mission is to make coding accessible and inclusive for all developers, regardless of physical abilities. codewhisper breaks down barriers in software development by enabling voice-controlled coding and providing audio feedback, particularly benefiting users with visual impairments or motor disabilities. We strive to create a more diverse and inclusive tech industry by ensuring that everyone has the opportunity to code.
+
 ## Project Overview
 
 codewhisper revolutionizes the coding experience by allowing developers to interact with their entire codebase using voice commands. It leverages advanced AI to understand context, make intelligent edits, and provide real-time feedback, all driven by natural speech input.
