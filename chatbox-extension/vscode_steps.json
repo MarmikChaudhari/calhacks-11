@@ -1,12 +1,7 @@
 [
   {
-    "content": "Make a new file called transcription.txt.",
+    "content": "Open the file named \"main.py\".",
     "type": "system",
-    "action": "create"
-  },
-  {
-    "content": "Rename the file transcription.txt to speech-read.txt.",
-    "type": "system",
-    "action": "rename"
+    "action": "open"
   }
 ]

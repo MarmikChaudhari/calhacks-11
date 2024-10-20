@@ -55,6 +55,7 @@ class ChatMessage extends vscode.TreeItem {
 let ws: WebSocket | null = null;
 let chatViewProvider: ChatViewProvider;
 let isListening = false;
+let isOptionKeyPressed = false;
 
 function connectWebSocket() {
     ws = new WebSocket('ws://127.0.0.1:8765');
@@ -88,19 +89,29 @@ function connectWebSocket() {
     });
 }
 
-function toggleListening() {
-    if (ws && ws.readyState === WebSocket.OPEN) {
-        if (isListening) {
-            ws.send('STOP');
-            vscode.window.showInformationMessage('Speech recognition stopped. Processing...');
-        } else {
-            ws.send('START');
-            vscode.window.showInformationMessage('Speech recognition started...');
-        }
-        isListening = !isListening;
+function startListening() {
+    if (ws && ws.readyState === WebSocket.OPEN && !isListening) {
+        ws.send('START');
+        vscode.window.showInformationMessage('Speech recognition started...');
+        isListening = true;
         updateMicButtonState();
+    }
+}
+
+function stopListening() {
+    if (ws && ws.readyState === WebSocket.OPEN && isListening) {
+        ws.send('STOP');
+        vscode.window.showInformationMessage('Speech recognition stopped. Processing...');
+        isListening = false;
+        updateMicButtonState();
+    }
+}
+
+function toggleListening() {
+    if (isListening) {
+        stopListening();
     } else {
-        vscode.window.showWarningMessage('Speech recognition server not connected. Please try again.');
+        startListening();
     }
 }
 
@@ -129,11 +140,22 @@ export function activate(context: vscode.ExtensionContext) {
     // Register key event listeners
     const optionKeyPressed = vscode.commands.registerCommand('type', (args) => {
         if (args.text === '\u001b') { // Option key code
-            toggleListening();
+            if (!isOptionKeyPressed) {
+                isOptionKeyPressed = true;
+                startListening();
+            }
         }
     });
 
-    context.subscriptions.push(optionKeyPressed);
+    // Listen for key release events
+    const optionKeyReleased = vscode.workspace.onDidChangeTextDocument((event) => {
+        if (event.contentChanges.length > 0 && event.contentChanges[0].text === '' && isOptionKeyPressed) {
+            isOptionKeyPressed = false;
+            stopListening();
+        }
+    });
+
+    context.subscriptions.push(optionKeyPressed, optionKeyReleased);
 
     // Update mic button state when extension is activated
     updateMicButtonState();
