@@ -1,8 +1,8 @@
 {
     "name": "vscode-chatbox-extension",
     "displayName": "VS Code Chatbox Extension",
-    "description": "A chat box extension for VS Code",
-    "version": "0.0.1",
+    "description": "A chat box extension for VS Code with speech recognition",
+    "version": "0.0.2",
     "engines": {
         "vscode": "^1.60.0"
     },
@@ -11,7 +11,7 @@
     ],
     "activationEvents": [
         "onView:chatboxView",
-        "onCommand:chatbox.test"
+        "onCommand:chatbox.toggleListening"
     ],
     "main": "./out/extension.js",
     "contributes": {
@@ -34,14 +34,20 @@
         },
         "commands": [
             {
-                "command": "chatbox.sendMessage",
-                "title": "Send Chat Message"
-            },
-            {
-                "command": "chatbox.test",
-                "title": "Test Chatbox Extension"
+                "command": "chatbox.toggleListening",
+                "title": "Toggle Speech Recognition",
+                "icon": "$(mic)"
             }
-        ]
+        ],
+        "menus": {
+            "view/title": [
+                {
+                    "command": "chatbox.toggleListening",
+                    "when": "view == chatboxView",
+                    "group": "navigation"
+                }
+            ]
+        }
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",

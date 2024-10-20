@@ -51,11 +51,13 @@ class ChatMessage extends vscode.TreeItem {
         this.description = `${type}${action ? ': ' + action : ''}`;
     }
 }
+
 let ws: WebSocket | null = null;
 let chatViewProvider: ChatViewProvider;
+let isListening = false;
 
 function connectWebSocket() {
-    ws = new WebSocket('ws://localhost:8765');
+    ws = new WebSocket('ws://127.0.0.1:8765');
 
     ws.on('open', () => {
         console.log('Connected to Python WebSocket server');
@@ -77,13 +79,33 @@ function connectWebSocket() {
     ws.on('close', () => {
         console.log('Disconnected from Python WebSocket server');
         vscode.window.showWarningMessage('Disconnected from speech recognition server. Attempting to reconnect...');
-        setTimeout(connectWebSocket, 5000); // Try to reconnect after 5 seconds
+        setTimeout(connectWebSocket, 5000);
     });
 
     ws.on('error', (error) => {
         console.error('WebSocket error:', error);
         vscode.window.showErrorMessage('Error connecting to speech recognition server');
     });
+}
+
+function toggleListening() {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        if (isListening) {
+            ws.send('STOP');
+            vscode.window.showInformationMessage('Speech recognition stopped. Processing...');
+        } else {
+            ws.send('START');
+            vscode.window.showInformationMessage('Speech recognition started...');
+        }
+        isListening = !isListening;
+        updateMicButtonState();
+    } else {
+        vscode.window.showWarningMessage('Speech recognition server not connected. Please try again.');
+    }
+}
+
+function updateMicButtonState() {
+    vscode.commands.executeCommand('setContext', 'chatbox.isListening', isListening);
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -94,28 +116,27 @@ export function activate(context: vscode.ExtensionContext) {
 
     connectWebSocket();
 
+    const micButton = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    micButton.text = '$(mic) Start Listening';
+    micButton.command = 'chatbox.toggleListening';
+    micButton.show();
+    context.subscriptions.push(micButton);
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('chatbox.toggleListening', toggleListening)
+    );
+
     // Register key event listeners
     const optionKeyPressed = vscode.commands.registerCommand('type', (args) => {
         if (args.text === '\u001b') { // Option key code
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send('START');
-                vscode.window.showInformationMessage('Speech recognition started...');
-            } else {
-                vscode.window.showWarningMessage('Speech recognition server not connected. Please try again.');
-            }
+            toggleListening();
         }
     });
 
-    const optionKeyReleased = vscode.workspace.onDidChangeTextDocument((event) => {
-        if (event.contentChanges.length > 0 && event.contentChanges[0].text === '') {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send('STOP');
-                vscode.window.showInformationMessage('Speech recognition stopped. Processing...');
-            }
-        }
-    });
+    context.subscriptions.push(optionKeyPressed);
 
-    context.subscriptions.push(optionKeyPressed, optionKeyReleased);
+    // Update mic button state when extension is activated
+    updateMicButtonState();
 
     console.log('Extension "vscode-chatbox-extension" is now active');
 }
