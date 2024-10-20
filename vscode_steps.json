@@ -1,0 +1,27 @@
+[
+  {
+    "content": "Open the terminal.",
+    "type": "system",
+    "action": "open"
+  },
+  {
+    "content": "Run the command \"mkdir\".",
+    "type": "code_generation",
+    "action": "create"
+  },
+  {
+    "content": "Correctly open the file \"speechreader.typescript\".",
+    "type": "system",
+    "action": "open"
+  },
+  {
+    "content": "Change all the TypeScript code into Python.",
+    "type": "code_generation",
+    "action": "edit"
+  },
+  {
+    "content": "Execute the Python file in the terminal.",
+    "type": "system",
+    "action": "run"
+  }
+]

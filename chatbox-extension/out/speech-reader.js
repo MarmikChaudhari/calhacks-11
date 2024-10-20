@@ -35,4 +35,65 @@ function watchStepsFile(callback) {
     });
 }
 exports.watchStepsFile = watchStepsFile;
+class CustomInputViewProvider {
+    constructor(_extensionUri) {
+        this._extensionUri = _extensionUri;
+    }
+    resolveWebviewView(webviewView, context, _token) {
+        this._view = webviewView;
+        webviewView.webview.options = {
+            enableScripts: true,
+            localResourceRoots: [this._extensionUri]
+        };
+        webviewView.webview.html = this._getHtmlForWebview(webviewView.webview);
+        watchRealtimeTranscription((transcription) => {
+            webviewView.webview.postMessage({ type: 'updateTranscription', value: transcription });
+        });
+        webviewView.webview.onDidReceiveMessage(data => {
+            switch (data.type) {
+                case 'inputSubmitted':
+                    // Handle the input here
+                    console.log(data.value);
+                    break;
+            }
+        });
+    }
+    _getHtmlForWebview(webview) {
+        return `<!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Custom Input</title>
+            </head>
+            <body>
+                <input type="text" id="customInput" placeholder="Enter command...">
+                <div id="transcription"></div>
+                <script>
+                    const vscode = acquireVsCodeApi();
+                    const input = document.getElementById('customInput');
+                    const transcriptionDiv = document.getElementById('transcription');
+                    input.addEventListener('keyup', (e) => {
+                        if (e.key === 'Enter') {
+                            vscode.postMessage({
+                                type: 'inputSubmitted',
+                                value: input.value
+                            });
+                            input.value = '';
+                        }
+                    });
+                    window.addEventListener('message', event => {
+                        const message = event.data;
+                        switch (message.type) {
+                            case 'updateTranscription':
+                                transcriptionDiv.textContent = message.value;
+                                break;
+                        }
+                    });
+                </script>
+            </body>
+            </html>`;
+    }
+}
+CustomInputViewProvider.viewType = 'customInputView';
 //# sourceMappingURL=speech-reader.js.map

@@ -41,6 +41,9 @@ SYSTEM_ACTIONS = {
     'update': r'\b(update|upgrade)\b'
 }
 
+# Constant for the JSON file path
+STEPS_JSON_FILE = "vscode_steps.json"
+
 def start_transcription():
     global transcription_active, dg_connection, audio_thread, exit_flag
     
@@ -133,6 +136,8 @@ def on_press(key):
     global transcription_active
     if key == keyboard.Key.alt and not transcription_active:
         print("Starting transcription...")
+        # Clear the transcription file when starting a new session
+        open("transcription.txt", "w").close()
         start_transcription()
 
 def on_release(key):
@@ -148,10 +153,8 @@ def on_release(key):
         print("Structured Steps:")
         print(structured_steps)
         
-        execute_steps(structured_steps)
-        
-        # Clear the transcription file for the next session
-        open("transcription.txt", "w").close()
+        parsed_steps = parse_classified_steps(structured_steps)
+        save_steps_to_json(parsed_steps)
 
 def parse_classified_steps(structured_steps):
     # Split the steps, keeping the step numbers
@@ -179,76 +182,14 @@ def parse_classified_steps(structured_steps):
                 'type': 'other',
                 'action': None
             })
-
-    # Save the parsed steps to a JSON file
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"steps_{timestamp}.json"
-    
-    with open(filename, 'w') as json_file:
-        json.dump(parsed_steps, json_file, indent=2)
-    
-    print(f"Steps have been saved to {filename}")
     
     return parsed_steps
 
-def execute_steps(structured_steps):
-    steps = parse_classified_steps(structured_steps)
-    for step in steps:
-        action_type = step['type']
-        if action_type == 'system':
-            specific_action = step['action'] or 'other'
-            execute_system_action(step['content'], specific_action)
-        elif action_type == 'code_generation':
-            generated_code = generate_code(step['content'])
-            print(f"Generated code for step: {step['content']}")
-            print(generated_code)
-        else:
-            print(f"Other step: {step['content']}")
-
-def execute_system_action(step, action):
-    print(f"Executing system action: {action}")
-    # Implement the logic for each system action here
-    if action == 'open':
-        print(f"Opening: {step}")
-        # TODO: Implement the logic to open a file or application
-    elif action == 'create':
-        print(f"Creating: {step}")
-        # TODO: Implement the logic to create a file or application
-    elif action == 'delete':
-        print(f"Deleting: {step}")
-        # TODO: Implement the logic to delete a file or application
-    elif action == 'rename':
-        print(f"Renaming: {step}")
-    elif action == 'move':
-        print(f"Moving: {step}")
-    elif action == 'edit':
-        print(f"Editing: {step}")
-    elif action == 'run':
-        print(f"Running: {step}")
-    elif action == 'stop':
-        print(f"Stopping: {step}")
-    elif action == 'install':
-        print(f"Installing: {step}")
-    elif action == 'update':
-        print(f"Updating: {step}")
-    else:
-        print(f"Other action: {action}, Step: {step}")
-
-def generate_code(step):
-    client = OpenAI(api_key=OPENAI_API_KEY)
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": "You are a helpful assistant that generates code or makes relevant changes to files based on instructions."},
-                {"role": "user", "content": f"Generate or make changes to code for the following instruction:\n\n{step}"}
-            ],
-            max_tokens=1500
-        )
-        return response.choices[0].message.content.strip()
-    except Exception as e:
-        print(f"Error in code generation: {e}")
-        return "# Error occurred during code generation"
+def save_steps_to_json(parsed_steps):
+    with open(STEPS_JSON_FILE, 'w') as json_file:
+        json.dump(parsed_steps, json_file, indent=2)
+    
+    print(f"Steps have been saved to {STEPS_JSON_FILE}")
 
 def main():
     print("Press and hold the Option (Alt) key to start transcribing. Release to generate steps.")
